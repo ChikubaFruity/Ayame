@@ -1,5 +1,5 @@
 [models]
-generate = "qwen3.5:2b"
+generate = "gemma4:12b"
 embed    = "nomic-embed-text"
 
 [generation]
