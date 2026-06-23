@@ -25,7 +25,7 @@ ollama pull gemma4:12b    # デフォルト生成モデル
 ```bash
 git clone https://github.com/yourname/ayame.git
 cd ayame
-pip install -e .
+uv sync
 ```
 
 ## 使い方
@@ -33,7 +33,7 @@ pip install -e .
 ### PDFを取り込む
 
 ```bash
-ayame ingest --path 講義資料.pdf --subject 機械学習 --session 3
+uv run ayame ingest --path 講義資料.pdf --subject 機械学習 --session 3
 ```
 
 | オプション | 説明 |
@@ -45,7 +45,7 @@ ayame ingest --path 講義資料.pdf --subject 機械学習 --session 3
 ### 質問する
 
 ```bash
-ayame query "過学習を防ぐ手法を教えて"
+uv run ayame query "過学習を防ぐ手法を教えて"
 ```
 
 出力例：
