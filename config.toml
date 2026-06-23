@@ -1,0 +1,21 @@
+[models]
+generate = "qwen3.5:2b"
+embed    = "nomic-embed-text"
+
+[generation]
+temperature = 0.4
+top_p       = 0.95
+top_k       = 64
+
+[chunking]
+size    = 800
+overlap = 150
+
+[retrieval]
+top_k = 5
+
+[paths]
+chroma_dir = "data/chroma"
+
+[chroma]
+collection = "lectures"
