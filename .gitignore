@@ -8,12 +8,13 @@ wheels/
 
 # Virtual environment
 .venv
+backend/.venv
 
 # ChromaDB（全データ）
-data/chroma/
+backend/data/chroma/
 
 # 講義資料PDF（著作物・プライベート）
-data/pdfs/
+backend/data/pdfs/
 
 # macOS
 .DS_Store

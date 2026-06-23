@@ -24,15 +24,19 @@ ollama pull gemma4:12b    # デフォルト生成モデル
 
 ```bash
 git clone https://github.com/yourname/ayame.git
-cd ayame
+cd ayame/backend
 uv sync
 ```
+
+> ディレクトリ構成: Pythonコア+APIは `backend/`、Web UIは `frontend/`。
+> CLI / API 系のコマンドはすべて `backend/` で実行する。
 
 ## 使い方
 
 ### PDFを取り込む
 
 ```bash
+# backend/ で実行
 uv run ayame ingest --path 講義資料.pdf --subject 機械学習 --session 3
 ```
 
@@ -65,6 +69,53 @@ uv run ayame query "過学習を防ぐ手法を教えて"
 └────────────────┴──────┴────────┴───────┘
 ```
 
+## Webアプリ（NotebookLM風UI）
+
+CLIに加えて、ブラウザからPDF取り込み・質問ができるWeb UIを同梱。
+
+構成:
+
+- バックエンド: FastAPI（既存のPython RAGコアをAPI化）
+- フロントエンド: Next.js (TypeScript)
+
+### 起動
+
+バックエンド（ポート8000）:
+
+```bash
+cd backend
+uv run ayame-server
+```
+
+フロントエンド（別ターミナル、ポート3000）:
+
+```bash
+cd frontend
+npm install   # 初回のみ
+npm run dev
+```
+
+ブラウザで http://localhost:3000 を開く。左パネルでPDFを取り込み、右側で質問するとトークン単位でストリーミング回答され、出典（科目・回・ページ）が表示される。
+
+### リモートアクセス（Tailscale）
+
+iPad/スマホや友人と共有する場合は [Tailscale](https://tailscale.com/) を利用する。
+
+- サーバ機とクライアント機にTailscaleを導入
+- バックエンドは既定で `0.0.0.0:8000` にbind（`HOST` / `PORT` 環境変数で変更可）
+- フロントの参照先APIを環境変数で指定する（`frontend/.env.local`）:
+
+```bash
+# frontend/.env.local — <tailscale-host> はMagicDNS名 or Tailscale IP
+NEXT_PUBLIC_API_BASE=http://<tailscale-host>:8000
+```
+
+- バックエンド側でフロントのオリジンをCORS許可（`*.ts.net` は既定で許可済み。それ以外は環境変数で追加）:
+
+```bash
+ALLOW_ORIGINS=http://<tailscale-host>:3000 uv run ayame-server
+```
+
 ## 設定
 
 `config.toml` で主要パラメータを変更できる。
@@ -91,8 +142,12 @@ top_k = 5  # 検索で取得するチャンク数
 | PDF抽出 | PyMuPDF |
 | CLI | Typer |
 | 表示 | Rich |
+| Web API | FastAPI + sse-starlette |
+| Web UI | Next.js (TypeScript) |
 
 ## ロードマップ
 
-- [ ] Discord Bot フロントエンド
-- [ ] 音声ファイル取り込み（faster-whisper）
+- [x] Webアプリ（FastAPI + Next.js、PDFチャット）
+- [ ] PDFインラインビューア + 本文ハイライト
+- [ ] マルチモーダル取り込み（動画/音声=faster-whisper, CSV）
+- [ ] 認証・Cloudflare Tunnelでの公開

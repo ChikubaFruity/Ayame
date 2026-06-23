@@ -22,3 +22,11 @@ class RetrievedChunk:
     text: str
     metadata: ChunkMetadata
     distance: float
+
+
+@dataclass
+class Source:
+    subject: str
+    session: int
+    page: int
+    source: str

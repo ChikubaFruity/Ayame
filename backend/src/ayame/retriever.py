@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from collections.abc import Callable
+
 from loguru import logger
 
 import chromadb
@@ -23,9 +25,26 @@ def _get_collection() -> chromadb.Collection:
     return _collection
 
 
+_EMBED_BATCH = 4
+
+
 def embed_texts(texts: list[str]) -> list[list[float]]:
     response = ollama.embed(model=settings.models.embed, input=texts)
     return response.embeddings
+
+
+def embed_chunks(
+    chunks: list[Chunk],
+    batch_size: int = _EMBED_BATCH,
+    on_progress: Callable[[int], None] | None = None,
+) -> list[list[float]]:
+    embeddings: list[list[float]] = []
+    for i in range(0, len(chunks), batch_size):
+        batch = chunks[i : i + batch_size]
+        embeddings.extend(embed_texts([c.text for c in batch]))
+        if on_progress:
+            on_progress(len(batch))
+    return embeddings
 
 
 def delete_source(source: str) -> None:
@@ -59,6 +78,26 @@ def store_chunks(chunks: list[Chunk], embeddings: list[list[float]]) -> None:
         metadatas=metadatas,
     )
     logger.info(f"Stored {len(chunks)} chunks in ChromaDB")
+
+
+def list_documents() -> list[dict]:
+    collection = _get_collection()
+    if collection.count() == 0:
+        return []
+
+    result = collection.get(include=["metadatas"])
+    docs: dict[str, dict] = {}
+    for meta in result["metadatas"]:
+        key = meta["source"]
+        if key not in docs:
+            docs[key] = {
+                "subject": meta["subject"],
+                "session": int(meta["session"]),
+                "source": meta["source"],
+                "chunks": 0,
+            }
+        docs[key]["chunks"] += 1
+    return sorted(docs.values(), key=lambda d: (d["subject"], d["session"]))
 
 
 def search(query: str, top_k: int | None = None) -> list[RetrievedChunk]:

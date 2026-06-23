@@ -17,8 +17,6 @@ from . import ingest as ingest_module
 from . import retriever
 from . import generator
 
-_EMBED_BATCH = 4
-
 app = typer.Typer(help="ローカルNotebookLM")
 console = Console()
 
@@ -55,11 +53,9 @@ def ingest(
         embed_task = progress.add_task(
             "[cyan]埋め込み処理中...", total=len(chunks)
         )
-        all_embeddings: list[list[float]] = []
-        for i in range(0, len(chunks), _EMBED_BATCH):
-            batch = chunks[i : i + _EMBED_BATCH]
-            all_embeddings.extend(retriever.embed_texts([c.text for c in batch]))
-            progress.advance(embed_task, len(batch))
+        all_embeddings = retriever.embed_chunks(
+            chunks, on_progress=lambda n: progress.advance(embed_task, n)
+        )
         progress.update(embed_task, description="[green]埋め込み完了")
 
         # ステップ4: ChromaDB 保存
