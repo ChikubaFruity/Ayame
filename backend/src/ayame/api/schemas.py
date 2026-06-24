@@ -8,10 +8,20 @@ class SourceModel(BaseModel):
     session: int
     page: int
     source: str
+    start: float = 0.0
+    kind: str = "pdf"
 
     @classmethod
     def from_source(cls, s: Source) -> "SourceModel":
-        return cls(subject=s.subject, session=s.session, page=s.page + 1, source=s.source)
+        page = s.page if s.kind == "media" else s.page + 1
+        return cls(
+            subject=s.subject,
+            session=s.session,
+            page=page,
+            source=s.source,
+            start=s.start,
+            kind=s.kind,
+        )
 
 
 class IngestResponse(BaseModel):

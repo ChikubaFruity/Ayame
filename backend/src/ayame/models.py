@@ -8,6 +8,8 @@ class ChunkMetadata:
     page: int
     source: str
     ingested_at: str
+    start: float = 0.0
+    kind: str = "pdf"
 
 
 @dataclass
@@ -30,3 +32,5 @@ class Source:
     session: int
     page: int
     source: str
+    start: float = 0.0
+    kind: str = "pdf"

@@ -20,6 +20,13 @@ class ChunkingSettings(BaseModel):
     overlap: int
 
 
+class WhisperSettings(BaseModel):
+    model: str
+    device: str
+    compute_type: str
+    language: str
+
+
 class RetrievalSettings(BaseModel):
     top_k: int
 
@@ -36,6 +43,7 @@ class Settings(BaseModel):
     models: ModelSettings
     generation: GenerationSettings
     chunking: ChunkingSettings
+    whisper: WhisperSettings
     retrieval: RetrievalSettings
     paths: PathSettings
     chroma: ChromaSettings

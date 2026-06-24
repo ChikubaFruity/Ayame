@@ -68,6 +68,8 @@ def store_chunks(chunks: list[Chunk], embeddings: list[list[float]]) -> None:
             "page": c.metadata.page,
             "source": c.metadata.source,
             "ingested_at": c.metadata.ingested_at,
+            "start": c.metadata.start,
+            "kind": c.metadata.kind,
         }
         for c in chunks
     ]
@@ -129,6 +131,8 @@ def search(query: str, top_k: int | None = None) -> list[RetrievedChunk]:
                     page=int(meta["page"]),
                     source=meta["source"],
                     ingested_at=meta["ingested_at"],
+                    start=float(meta.get("start", 0.0)),
+                    kind=meta.get("kind", "pdf"),
                 ),
                 distance=dist,
             )

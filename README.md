@@ -1,11 +1,12 @@
 # ayame
 
-講義資料PDFをローカルLLMで質問応答するRAGシステム。データはすべてローカルに保持し、出典をチャンク単位（科目・回・ページ）で表示する。
+講義資料PDF・音声・動画をローカルLLMで質問応答するRAGシステム。データはすべてローカルに保持し、出典をチャンク単位（科目・回・ページ/タイムスタンプ）で表示する。
 
 ## 特徴
 
 - **完全ローカル** — Ollama + ChromaDB、外部APIなし
-- **細粒度の出典** — 科目・講義回・ページ番号を付与
+- **多様な入力** — PDFに加え音声・動画を faster-whisper で文字起こしして取り込み
+- **細粒度の出典** — 科目・講義回・ページ番号（メディアは mm:ss）を付与
 - **シンプルなCLI** — `ingest` と `query` の2コマンドで完結
 - **設定ファイル一本** — モデルやチャンクサイズを `config.toml` で管理
 
@@ -20,6 +21,12 @@ ollama pull nomic-embed-text
 ollama pull gemma4:12b    # デフォルト生成モデル
 ```
 
+- 音声・動画を取り込む場合:
+  - システムに `ffmpeg` を導入（動画コーデックのデコード用）
+  - GPU(CUDA)で文字起こしする場合は CUDA12 / cuDNN9 / cuBLAS が必要
+    （不足時は `config.toml` の `[whisper] device = "cpu"` に変更）
+  - 初回取り込み時に whisper モデル（既定 `large-v3`）が自動ダウンロードされる
+
 ## インストール
 
 ```bash
@@ -33,16 +40,17 @@ uv sync
 
 ## 使い方
 
-### PDFを取り込む
+### 資料を取り込む（PDF / 音声 / 動画）
 
 ```bash
 # backend/ で実行
 uv run ayame ingest --path 講義資料.pdf --subject 機械学習 --session 3
+uv run ayame ingest --path 講義録画.mp4 --subject 機械学習 --session 3  # 文字起こしして取り込み
 ```
 
 | オプション | 説明 |
 |---|---|
-| `--path` | PDFファイルのパス |
+| `--path` | PDF / 音声(mp3,wav,m4a,flac,ogg,aac) / 動画(mp4,mov,mkv,webm,avi) のパス |
 | `--subject` | 科目名 |
 | `--session` | 講義回（整数） |
 
@@ -71,7 +79,7 @@ uv run ayame query "過学習を防ぐ手法を教えて"
 
 ## Webアプリ（NotebookLM風UI）
 
-CLIに加えて、ブラウザからPDF取り込み・質問ができるWeb UIを同梱。
+CLIに加えて、ブラウザからPDF・音声・動画の取り込みと質問ができるWeb UIを同梱。
 
 構成:
 
@@ -95,7 +103,7 @@ npm install   # 初回のみ
 npm run dev
 ```
 
-ブラウザで http://localhost:3000 を開く。左パネルでPDFを取り込み、右側で質問するとトークン単位でストリーミング回答され、出典（科目・回・ページ）が表示される。
+ブラウザで http://localhost:3000 を開く。左パネルで資料（PDF・音声・動画）を取り込み、右側で質問するとトークン単位でストリーミング回答され、出典（科目・回・ページ/タイムスタンプ）が表示される。
 
 ### リモートアクセス（Tailscale）
 
@@ -129,9 +137,18 @@ embed    = "nomic-embed-text" # 埋め込みモデル
 size    = 800  # チャンクサイズ（文字数）
 overlap = 150  # 隣接チャンクとの重複文字数
 
+[whisper]
+model        = "large-v3"  # faster-whisperのモデル
+device       = "cuda"      # cuda | cpu
+compute_type = "float16"   # float16 | int8 | int8_float16
+language     = "ja"
+
 [retrieval]
 top_k = 5  # 検索で取得するチャンク数
 ```
+
+> 文字起こしと生成モデルは VRAM 競合を避けるため同時にGPUへ常駐させない。
+> 取り込み時に Ollama のモデルを一時アンロード→文字起こし→whisperをアンロード→埋め込み、の順で処理する。
 
 ## 技術スタック
 
@@ -140,6 +157,7 @@ top_k = 5  # 検索で取得するチャンク数
 | LLM推論 | [Ollama](https://ollama.com/) |
 | ベクトルDB | ChromaDB |
 | PDF抽出 | PyMuPDF |
+| 文字起こし | faster-whisper |
 | CLI | Typer |
 | 表示 | Rich |
 | Web API | FastAPI + sse-starlette |
@@ -148,6 +166,7 @@ top_k = 5  # 検索で取得するチャンク数
 ## ロードマップ
 
 - [x] Webアプリ（FastAPI + Next.js、PDFチャット）
+- [x] 動画/音声取り込み（faster-whisper、タイムスタンプ出典）
 - [ ] PDFインラインビューア + 本文ハイライト
-- [ ] マルチモーダル取り込み（動画/音声=faster-whisper, CSV）
+- [ ] マルチモーダル取り込み（CSV）
 - [ ] 認証・Cloudflare Tunnelでの公開

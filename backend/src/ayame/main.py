@@ -102,18 +102,19 @@ def query(
 
 
 def _print_sources_table(chunks) -> None:
-    seen: set[tuple[str, int, int]] = set()
+    seen: set[tuple] = set()
     table = Table(title="出典", show_header=True, header_style="bold magenta")
     table.add_column("科目", style="cyan")
     table.add_column("回", justify="right")
-    table.add_column("ページ", justify="right")
+    table.add_column("位置", justify="right")
     table.add_column("ファイル名")
 
     for chunk in chunks:
         m = chunk.metadata
-        key = (m.source, m.session, m.page)
+        key = (m.source, m.session, m.page, m.kind, m.start)
         if key not in seen:
             seen.add(key)
-            table.add_row(m.subject, f"第{m.session}回", str(m.page + 1), m.source)
+            loc = generator.format_ts(m.start) if m.kind == "media" else f"p.{m.page + 1}"
+            table.add_row(m.subject, f"第{m.session}回", loc, m.source)
 
     console.print(table)

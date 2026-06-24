@@ -6,9 +6,18 @@ import {
   ApiDocument,
   Source,
   fetchDocuments,
-  ingestPdf,
+  ingestFile,
   streamChat,
 } from "@/lib/api";
+
+function formatTs(sec: number): string {
+  const s = Math.floor(sec);
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const ss = s % 60;
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return h > 0 ? `${h}:${pad(m)}:${pad(ss)}` : `${pad(m)}:${pad(ss)}`;
+}
 
 export default function Home() {
   const [documents, setDocuments] = useState<ApiDocument[]>([]);
@@ -86,8 +95,9 @@ export default function Home() {
                     key={i}
                     className="text-xs border border-black/10 dark:border-white/15 rounded px-3 py-2"
                   >
-                    <span className="font-medium">{s.subject}</span> 第{s.session}回
-                    p.{s.page} <span className="opacity-50">({s.source})</span>
+                    <span className="font-medium">{s.subject}</span> 第{s.session}回{" "}
+                    {s.kind === "media" ? formatTs(s.start ?? 0) : `p.${s.page}`}{" "}
+                    <span className="opacity-50">({s.source})</span>
                   </li>
                 ))}
               </ul>
@@ -139,7 +149,7 @@ function SourcePanel({
     setBusy(true);
     setMsg("");
     try {
-      const res = await ingestPdf(file, subject, Number(session));
+      const res = await ingestFile(file, subject, Number(session));
       setMsg(`取り込み完了: ${res.source}（${res.chunks}チャンク）`);
       setFile(null);
       setSubject("");
@@ -155,11 +165,13 @@ function SourcePanel({
   return (
     <aside className="w-72 shrink-0 border-r border-black/10 dark:border-white/15 flex flex-col">
       <div className="px-4 py-4 border-b border-black/10 dark:border-white/15">
-        <h2 className="text-xs font-semibold opacity-60 mb-3">PDFを取り込む</h2>
+        <h2 className="text-xs font-semibold opacity-60 mb-3">
+          資料を取り込む（PDF・音声・動画）
+        </h2>
         <div className="flex flex-col gap-2">
           <input
             type="file"
-            accept="application/pdf"
+            accept="application/pdf,audio/*,video/*"
             onChange={(e) => setFile(e.target.files?.[0] ?? null)}
             className="text-xs"
           />
@@ -183,6 +195,9 @@ function SourcePanel({
           >
             {busy ? "取り込み中..." : "取り込む"}
           </button>
+          <p className="text-[11px] opacity-50">
+            音声・動画は文字起こしのため時間がかかります
+          </p>
           {msg && <p className="text-[11px] opacity-70">{msg}</p>}
         </div>
       </div>

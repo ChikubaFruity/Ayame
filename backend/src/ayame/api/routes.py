@@ -3,10 +3,12 @@ import tempfile
 from pathlib import Path
 
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile
+from fastapi.concurrency import run_in_threadpool
 from sse_starlette.sse import EventSourceResponse
 
 from .. import generator, retriever
 from .. import ingest as ingest_module
+from ..transcribe import MEDIA_EXTS
 from .schemas import (
     DocumentModel,
     IngestResponse,
@@ -34,25 +36,34 @@ async def ingest(
     subject: str = Form(...),
     session: int = Form(...),
 ) -> IngestResponse:
-    if not (file.filename or "").lower().endswith(".pdf"):
-        raise HTTPException(status_code=400, detail="PDFファイルのみ対応しています")
+    suffix = Path(file.filename or "").suffix.lower()
+    if suffix != ".pdf" and suffix not in MEDIA_EXTS:
+        raise HTTPException(
+            status_code=400, detail="PDF・音声・動画ファイルのみ対応しています"
+        )
 
-    with tempfile.TemporaryDirectory() as tmp:
-        pdf_path = Path(tmp) / file.filename
-        pdf_path.write_bytes(await file.read())
+    data = await file.read()
 
-        chunks = ingest_module.prepare_chunks(pdf_path, subject, session)
-        if not chunks:
-            raise HTTPException(
-                status_code=422,
-                detail="テキストを抽出できませんでした（スキャンPDFの可能性）",
-            )
+    # 文字起こしが長時間ブロックするためスレッドプールで実行
+    def process() -> int:
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / file.filename
+            path.write_bytes(data)
 
-        retriever.delete_source(pdf_path.name)
-        embeddings = retriever.embed_chunks(chunks)
-        retriever.store_chunks(chunks, embeddings)
+            chunks = ingest_module.prepare_chunks(path, subject, session)
+            if not chunks:
+                raise HTTPException(
+                    status_code=422,
+                    detail="テキストを抽出できませんでした（スキャンPDF/無音の可能性）",
+                )
 
-    return IngestResponse(source=file.filename, chunks=len(chunks))
+            retriever.delete_source(path.name)
+            embeddings = retriever.embed_chunks(chunks)
+            retriever.store_chunks(chunks, embeddings)
+            return len(chunks)
+
+    count = await run_in_threadpool(process)
+    return IngestResponse(source=file.filename, chunks=count)
 
 
 @router.post("/query", response_model=QueryResponse)

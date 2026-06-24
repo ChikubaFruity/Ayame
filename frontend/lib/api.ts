@@ -6,6 +6,8 @@ export type Source = {
   session: number;
   page: number;
   source: string;
+  start?: number;
+  kind?: string;
 };
 
 export type ApiDocument = {
@@ -26,7 +28,7 @@ export async function fetchDocuments(): Promise<ApiDocument[]> {
   return res.json();
 }
 
-export async function ingestPdf(
+export async function ingestFile(
   file: File,
   subject: string,
   session: number,

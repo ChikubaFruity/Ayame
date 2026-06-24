@@ -11,6 +11,12 @@ top_k       = 64
 size    = 800
 overlap = 150
 
+[whisper]
+model        = "large-v3"
+device       = "cuda"      # cuda | cpu
+compute_type = "float16"   # float16 | int8 | int8_float16
+language     = "ja"
+
 [retrieval]
 top_k = 5
 

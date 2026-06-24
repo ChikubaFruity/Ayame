@@ -12,11 +12,21 @@ _SYSTEM_PROMPT = (
 )
 
 
+def format_ts(sec: float) -> str:
+    s = int(sec)
+    h, m, sec = s // 3600, (s % 3600) // 60, s % 60
+    return f"{h}:{m:02d}:{sec:02d}" if h else f"{m:02d}:{sec:02d}"
+
+
+def _locator(m) -> str:
+    return format_ts(m.start) if m.kind == "media" else f"p.{m.page + 1}"
+
+
 def build_prompt(question: str, chunks: list[RetrievedChunk]) -> str:
     context_parts = []
     for chunk in chunks:
         m = chunk.metadata
-        label = f"[出典: {m.subject} 第{m.session}回 p.{m.page + 1}]"
+        label = f"[出典: {m.subject} 第{m.session}回 {_locator(m)}]"
         context_parts.append(f"{label}\n{chunk.text}")
 
     context = "\n\n".join(context_parts)
@@ -66,19 +76,22 @@ def generate(question: str, chunks: list[RetrievedChunk]) -> str:
 
 
 def collect_sources(chunks: list[RetrievedChunk]) -> list[Source]:
-    seen: set[tuple[str, int, int]] = set()
+    seen: set[tuple] = set()
     sources: list[Source] = []
     for chunk in chunks:
         m = chunk.metadata
-        key = (m.source, m.session, m.page)
+        key = (m.source, m.session, m.page, m.kind, m.start)
         if key not in seen:
             seen.add(key)
-            sources.append(Source(m.subject, m.session, m.page, m.source))
+            sources.append(
+                Source(m.subject, m.session, m.page, m.source, m.start, m.kind)
+            )
     return sources
 
 
 def _format_sources(chunks: list[RetrievedChunk]) -> str:
     lines = ["[出典]"]
     for s in collect_sources(chunks):
-        lines.append(f"  - {s.subject} 第{s.session}回 p.{s.page + 1} ({s.source})")
+        loc = format_ts(s.start) if s.kind == "media" else f"p.{s.page + 1}"
+        lines.append(f"  - {s.subject} 第{s.session}回 {loc} ({s.source})")
     return "\n".join(lines)
